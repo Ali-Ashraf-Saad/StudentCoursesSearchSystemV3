@@ -66,3 +66,207 @@ A complete web‑based system for students to look up their enrolled courses, ex
 ---
 
 ## 📁 File Structure
+
+```
+.
+├── index.php                   # Main search interface + hidden stats panel
+├── dashboard.html              # Independent analytics dashboard
+├── search.php                  # Search logic & statistics recording
+├── active.php                  # Heartbeat & active users management
+├── active_stats.php            # (Legacy) separate stats viewer tracking
+├── counter.php                 # Simple visitor counter
+├── dashboard_data.php          # Aggregates data for dashboard
+├── dashboard_page_open.php     # Logs dashboard page opens
+├── stats_open.php              # Logs hidden stats panel opens
+├── export_counter.php          # Counts image export actions
+├── reset_stats.php             # Resets all statistics (POST only)
+├── favicon.ico / dashboard-icon.png
+│
+├── data/                       # All JSON data files (auto‑created)
+│   ├── students.json           # Student records (see format below)
+│   ├── courses.json            # Course catalogue
+│   ├── exams.json              # Exam schedules per course/student
+│   ├── rooms.json              # Room mappings (optional)
+│   ├── active_users.json       # Live active users (auto‑managed)
+│   ├── search_counts.json      # Per‑student search frequency
+│   ├── search_log.json         # Detailed search log (max 1000 entries)
+│   ├── dashboard_page_opens.txt
+│   ├── dashboard_stats_opens.txt
+│   └── export_count.txt
+│
+├── students.json               # (Deprecated?) root copy – not used by code
+└── README.md                   # This file
+```
+
+> **Note:** The `data/` directory must be writable by the web server.
+
+---
+
+## 📦 Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/student-course-inquiry.git
+   cd student-course-inquiry
+   ```
+
+2. **Set up a web server** (Apache / Nginx / XAMPP / WAMP) with PHP 7.4+.
+
+3. **Configure permissions** – ensure the web server can write to the `data/` directory:
+   ```bash
+   chmod 755 data
+   chmod 666 data/*.json data/*.txt
+   ```
+
+4. **Prepare the JSON data files** inside the `data/` folder.  
+   See the **Data Format** section below for examples.
+
+5. **Access the application**:
+   - Main page: `http://your-server/index.php`
+   - Dashboard: `http://your-server/dashboard.html`
+
+---
+
+## 📄 Data Format
+
+All files are stored in `data/` as UTF‑8 JSON.
+
+### `students.json`
+```json
+[
+  {
+    "id": "20210001",
+    "name": "أحمد محمد",
+    "department": "CS",
+    "courses": ["CS438", "IS381", "CS424"]
+  }
+]
+```
+
+### `courses.json`
+```json
+{
+  "CS438": { "name": "شبكات الحاسوب المتقدمة" },
+  "IS381": { "name": "أمن المعلومات" }
+}
+```
+
+### `exams.json`
+```json
+[
+  {
+    "course": "CS438",
+    "committee": "A",
+    "room": "B102",
+    "day": "الاثنين",
+    "date": "15/05/2026",
+    "period": "الفترة الأولى",
+    "time": "09:00 – 12:00",
+    "students": ["20210001", "20210002"]
+  }
+]
+```
+
+### `rooms.json` (optional, not actively used)
+```json
+{
+  "B102": "مبنى B - قاعة 102"
+}
+```
+
+The system will create the other files (`active_users.json`, `search_log.json`, etc.) automatically when first needed.
+
+---
+
+## 🔧 Configuration
+
+You can adjust timeouts, file paths, and Google Drive links directly inside the PHP files.
+
+| File           | Setting                     | Default |
+|----------------|-----------------------------|---------|
+| `active.php`   | `$timeout` (seconds)        | 20      |
+| `search.php`   | `$MAX_RESULTS`              | 20      |
+| `search.php`   | Google Drive `$driveLinks`  | Array of course codes → URLs |
+| `dashboard_data.php` | `$timeout` for active users | 60      |
+
+---
+
+## 🚀 Usage Guide
+
+### Normal User (Student / Visitor)
+
+1. Open `index.php`.
+2. Type a student **ID** or **name** (Arabic) in the search box.
+3. Results appear automatically with courses, exam details, and drive links.
+4. Click the camera button to download an image of the student’s courses.
+5. Recent searches are saved in the history panel – click any to repeat.
+
+### Access the Hidden Statistics Panel
+
+1. On `index.php`, scroll to the footer.
+2. **Click on “Ali Ashraf” (developer name) 10 times**.
+3. The stats panel will slide down with live data.
+4. All users who open this panel are counted separately (`stats_active_users`).
+5. Use the **“🗑️ تصفير جميع الإحصائيات”** button to reset all counters and logs.
+
+### Analytics Dashboard
+
+- Open `dashboard.html` (or click the floating dashboard button on `index.php`).
+- The dashboard shows high‑level course enrollment analytics based on `students.json` and `courses.json`.
+- Charts are interactive – hover, zoom, pan.
+- Data refreshes on page reload (no auto‑refresh in this version).
+
+---
+
+## 🔄 API Endpoints (for developers)
+
+| Endpoint                     | Method | Description                                                                 |
+|------------------------------|--------|-----------------------------------------------------------------------------|
+| `search.php?q=<query>&commit=1&client_id=<id>` | GET | Returns matching students. `commit=1` logs the search (increment counter, log, search_counts). |
+| `active.php?client_id=<id>[&stats=1/0]`       | GET | Registers heartbeat. `stats=1` marks user as viewing stats panel.          |
+| `counter.php?action=increment`               | GET   | Increments and returns total visitor count.                                |
+| `dashboard_data.php`                         | GET   | Returns aggregated statistics for the dashboard.                           |
+| `reset_stats.php`                            | POST  | Resets all counters and logs (requires POST).                              |
+| `export_counter.php`                         | GET   | Increments export image counter.                                           |
+| `dashboard_page_open.php` / `stats_open.php` | GET   | Increments respective open counters.                                       |
+
+All responses are `application/json`.
+
+---
+
+## 🌟 Known Limitations & Future Improvements
+
+- **JSON file locking** – concurrent writes may cause race conditions (mitigated with `flock` in `active.php`, but not everywhere).
+- **Search performance** – linear scan over `students.json`. For >10k students, consider a database.
+- **Real‑time updates** – Dashboard uses polling (`setInterval` 2 seconds). Could be replaced with WebSockets.
+- **Dashboard charts** – do not auto‑refresh; requires manual page reload.
+
+Possible improvements:
+- Add database support (MySQL/PostgreSQL)
+- User authentication for admin panel
+- Export dashboard charts as PDF/PNG
+- Multi‑language support (English/Arabic toggle)
+
+---
+
+## 👤 Author
+
+Developed by **Ali Ashraf**  
+📧 [Your email] – 🌐 [Your website / GitHub]
+
+---
+
+## 📄 License
+
+This project is open‑source and available under the **MIT License**.  
+Feel free to use, modify, and distribute with appropriate credit.
+
+---
+
+## 🙏 Acknowledgements
+
+- [Plotly.js](https://plotly.com/javascript/) for beautiful charts
+- [html2canvas](https://html2canvas.hertzen.com/) for image exports
+- Google Fonts (Cairo, Sora, DM Sans, DM Mono)
+
+---

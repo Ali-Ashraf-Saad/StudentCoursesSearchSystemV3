@@ -1,5 +1,7 @@
 # Student Course Inquiry System with Analytics Dashboard
 
+> **🌐 Language:** [English](README.md) | [العربية](README_AR.md)
+
 A complete web‑based system for students to look up their enrolled courses, exam schedules, and study materials, combined with a real‑time analytics dashboard for administrators. The system uses **PHP** with flat‑file JSON storage, live user tracking, and rich visualizations powered by **Plotly**.
 
 ---
